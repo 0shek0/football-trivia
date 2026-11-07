@@ -1,4 +1,4 @@
-import { costForWaves, STORE_ITEMS, type GameView, type LobbyView, type MyBattleView, type SpectateView } from '@tb/shared';
+import { randomCostRange, STORE_ITEMS, type GameView, type LobbyView, type MyBattleView, type SpectateView } from '@tb/shared';
 import { battleOf, currentCost, mapSize, startError, wavesToNextCost, type Battle, type GameState, type Lobby } from '@tb/engine';
 
 export function lobbyView(lobby: Lobby): LobbyView {
@@ -63,7 +63,8 @@ export function gameView(game: GameState, playerId: string, phaseMsLeft: number,
     wave: game.wave,
     cost: currentCost(game),
     wavesToNextCost: wavesToNextCost(game),
-    costJustRose: game.completedWaves > 0 && costForWaves(game.completedWaves - 1, game.settings.roundsPerCostIncrease) < currentCost(game),
+    costJustRose: game.costRose,
+    costRange: randomCostRange(game.completedWaves + 1),
     questionTimeSec: game.settings.questionTimeSec,
     sides: game.sides.map((s) => ({
       id: s.id,

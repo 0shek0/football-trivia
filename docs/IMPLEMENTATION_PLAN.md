@@ -93,15 +93,15 @@ First prototype is complete: M1-M7 are built, with the full Arabic question pool
 - Automated browser tests (Playwright) and sound.
 - Going live: the hosting files are ready, and [DEPLOY.md](DEPLOY.md) has the steps. Stretching questions toward 1500 is optional.
 
-**Measured game length** with the default settings, simulated at about 5 s per answer:
+**Measured game length** in waves with the default settings, from 2000 simulated games each:
 
-| Game | Typical | Slowest 1 in 10 | Worst seen |
-|---|---|---|---|
-| 4 players, solo | 10 min | 15 min | about 30 min |
-| 8 players, solo | 22 min | 38 min | about 100 waves |
-| 4v4 teams | 10 min | 19 min | about 47 waves |
+| Game | Typical | Slowest 1 in 10 | Worst seen | Worst seen when the cost stopped at 3 |
+|---|---|---|---|---|
+| 4 players, solo | 13 | 18 | 28 | 57 |
+| 8 players, solo | 22 | 27 | 37 | 131 |
+| 4v4 teams | 12 | 20 | 33 | 66 |
 
-Long games come from two evenly matched sides swapping hexagons once the cost has stopped rising at 3.
+Long games used to come from evenly matched sides swapping hexagons at a cost of 3. The random costs from wave 20 now end them within a few more waves.
 
 ## Milestones
 

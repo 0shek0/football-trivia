@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { colorHex, type RoomView } from '@tb/shared';
+  import { colorHex, randomCostRange, type RoomView } from '@tb/shared';
   import { app, haptic } from '../lib/store.svelte';
   import Leaderboard from './Leaderboard.svelte';
 
@@ -17,6 +17,15 @@
   };
   const playerName = (id: string) => game.players.find((p) => p.id === id)?.name ?? '';
   const hexes = (n: number) => `${n} ${n === 1 ? 'hexagon' : 'hexagons'}`;
+
+  const costNote = $derived.by(() => {
+    if (game.costRange) return `Rolled from ${game.costRange.min} to ${game.costRange.max} each wave.`;
+    const ahead = game.wavesToNextCost;
+    if (ahead === null) return '';
+    // During the break, game.wave is the wave just played.
+    if (randomCostRange(game.wave + 1 + ahead)) return `Random from wave ${game.wave + 1 + ahead}.`;
+    return `Rises in ${ahead} ${ahead === 1 ? 'wave' : 'waves'}.`;
+  });
 
   // 'hold' is an in-between step: the outcome shows up as 'saved' or a capture.
   const lines = $derived(game.lastWave.filter((e) => e.type !== 'hold'));
@@ -49,11 +58,9 @@
     </ul>
 
     {#if game.costJustRose}
-      <p class="warn">Losing now costs {hexes(game.cost)}!</p>
-    {:else if game.wavesToNextCost !== null}
-      <p class="soft note">A loss costs {hexes(game.cost)}. Rises in {game.wavesToNextCost} {game.wavesToNextCost === 1 ? 'wave' : 'waves'}.</p>
+      <p class="warn">Losing now costs {hexes(game.cost)}! <span class="soft">{costNote}</span></p>
     {:else}
-      <p class="soft note">A loss costs {hexes(game.cost)}, the maximum.</p>
+      <p class="soft note">A loss costs {hexes(game.cost)}. {costNote}</p>
     {/if}
 
     <Leaderboard {view} />

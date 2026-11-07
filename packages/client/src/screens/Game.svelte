@@ -3,6 +3,7 @@
   import type { RoomView } from '@tb/shared';
   import { app, haptic } from '../lib/store.svelte';
   import Battle from '../game/Battle.svelte';
+  import CostAlert from '../game/CostAlert.svelte';
   import Countdown from '../game/Countdown.svelte';
   import GameOver from '../game/GameOver.svelte';
   import Hud from '../game/Hud.svelte';
@@ -36,6 +37,22 @@
   $effect(() => {
     if (game.phase !== 'wave') watchId = null;
   });
+  // Shown once per break in which the cost went up, wherever the player is in the game.
+  let costAlert = $state<{ wave: number; cost: number } | null>(null);
+  let alertedWave = 0;
+  $effect(() => {
+    if (game.phase === 'intermission' && game.costJustRose && game.wave > alertedWave) {
+      alertedWave = game.wave;
+      const shown = { wave: game.wave, cost: game.cost };
+      costAlert = shown;
+      haptic(40);
+      // Matches the alert's animation length.
+      setTimeout(() => {
+        if (costAlert?.wave === shown.wave) costAlert = null;
+      }, 2600);
+    }
+  });
+
   // A tap made while offline never reached the server, so ask again on return.
   $effect(() => {
     const battleId = untrack(() => watchId);
@@ -63,6 +80,12 @@
       <GameOver {view} />
     {/if}
   </div>
+{/if}
+
+{#if costAlert}
+  {#key costAlert.wave}
+    <CostAlert cost={costAlert.cost} />
+  {/key}
 {/if}
 
 {#if storeOpen}

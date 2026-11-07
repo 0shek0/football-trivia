@@ -156,9 +156,11 @@ export interface GameView {
   msLeft: number;
   wave: number;
   cost: number;
-  // Waves until the cost rises, null once it is at the maximum.
+  // Waves until the cost rises, null once costs are random.
   wavesToNextCost: number | null;
   costJustRose: boolean;
+  // The range this wave's cost was rolled from, once costs are random.
+  costRange: { min: number; max: number } | null;
   questionTimeSec: number;
   sides: SideView[];
   players: GamePlayerView[];

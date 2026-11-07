@@ -19,7 +19,6 @@ export const LIMITS = {
   questionTimeSec: { min: 10, max: 30 },
   roundsPerCostIncrease: { min: 1, max: 20 },
   waveBreakSec: [30, 300],
-  maxCost: 3,
   questionsPerSet: 5,
   name: { min: 2, max: 16 },
   teamName: { min: 2, max: 20 },
@@ -70,7 +69,19 @@ export interface StoreItem {
 // Rule 11: the purchase system is live, items are specified later.
 export const STORE_ITEMS: StoreItem[] = [];
 
-// Hexagons a round's loser gives up, given how many waves are complete.
+// Hexagons a round's loser gives up while the cost is still climbing, given how many waves are complete.
 export function costForWaves(completedWaves: number, roundsPerCostIncrease: number): number {
-  return Math.min(LIMITS.maxCost, 1 + Math.floor(completedWaves / roundsPerCostIncrease));
+  return 1 + Math.floor(completedWaves / roundsPerCostIncrease);
+}
+
+// Rule 7: from wave 20 the climb stops and each wave rolls a random cost instead.
+export const RANDOM_COSTS = [
+  { fromWave: 20, min: 3, max: 10 },
+  { fromWave: 26, min: 5, max: 15 },
+] as const;
+
+export function randomCostRange(wave: number): { min: number; max: number } | null {
+  let range: { min: number; max: number } | null = null;
+  for (const r of RANDOM_COSTS) if (wave >= r.fromWave) range = { min: r.min, max: r.max };
+  return range;
 }

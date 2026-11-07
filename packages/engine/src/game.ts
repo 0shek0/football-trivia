@@ -1,4 +1,4 @@
-import { costForWaves, LIMITS, STORE_ITEMS, type StoreItem } from '@tb/shared';
+import { costForWaves, LIMITS, randomCostRange, STORE_ITEMS, type StoreItem } from '@tb/shared';
 import type { Lobby } from './lobby';
 import type { Battle, GameState, Player, QuestionBank, Rng, Side } from './types';
 import { applyWaveResults } from './capture';
@@ -62,6 +62,8 @@ export function createGame(lobby: Lobby, rng: Rng): GameState {
     tiles,
     wave: 0,
     completedWaves: 0,
+    cost: costForWave(1, settings.roundsPerCostIncrease, rng),
+    costRose: false,
     battles: [],
     sittingOut: [],
     lastWave: [],
@@ -102,14 +104,26 @@ export function allTeamsNamed(game: GameState): boolean {
 
 // --- Cost ---
 
-export function currentCost(game: GameState): number {
-  return costForWaves(game.completedWaves, game.settings.roundsPerCostIncrease);
+// Wave numbers start at 1. Random waves roll once, so every round in a wave has the same stakes.
+export function costForWave(wave: number, roundsPerCostIncrease: number, rng: Rng): number {
+  const range = randomCostRange(wave);
+  if (!range) return costForWaves(wave - 1, roundsPerCostIncrease);
+  return range.min + Math.floor(rng() * (range.max - range.min + 1));
 }
 
+export function currentCost(game: GameState): number {
+  return game.cost;
+}
+
+// Waves until the climbing cost goes up, or null once costs are random.
+// The step into random costs counts, since that usually raises it too.
 export function wavesToNextCost(game: GameState): number | null {
-  if (currentCost(game) >= LIMITS.maxCost) return null;
+  const wave = game.completedWaves + 1;
+  if (randomCostRange(wave)) return null;
   const every = game.settings.roundsPerCostIncrease;
-  return every - (game.completedWaves % every);
+  for (let ahead = 1; ; ahead++) {
+    if (randomCostRange(wave + ahead) || costForWaves(wave + ahead - 1, every) !== game.cost) return ahead;
+  }
 }
 
 // --- Waves ---
@@ -257,6 +271,9 @@ export function waveComplete(game: GameState): boolean {
 export function resolveWave(game: GameState, rng: Rng) {
   game.lastWave = applyWaveResults(game, currentCost(game), rng);
   game.completedWaves++;
+  const before = game.cost;
+  game.cost = costForWave(game.completedWaves + 1, game.settings.roundsPerCostIncrease, rng);
+  game.costRose = game.cost > before;
   const alive = game.sides.filter((s) => !s.eliminated);
   if (alive.length === 1) {
     game.winnerSide = alive[0].id;

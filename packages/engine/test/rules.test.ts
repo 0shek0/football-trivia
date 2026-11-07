@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { awards, costForWaves, leaderboard, type GamePlayerView } from '@tb/shared';
 import { applyWaveResults } from '../src/capture';
 import {
-  advanceBattle, allTeamsNamed, buyItem, closeQuestion, createGame, finishBattle, finishNaming, markLeft,
-  openQuestion, resolveWave, setTeamName, setWatching, startWave, submitAnswer,
+  advanceBattle, allTeamsNamed, buyItem, closeQuestion, costForWave, createGame, finishBattle, finishNaming, markLeft,
+  openQuestion, resolveWave, setTeamName, setWatching, startWave, submitAnswer, wavesToNextCost,
 } from '../src/game';
 import { addPlayer, createLobby, mapSize, nameError, setColor, setTeam, startError, updateSettings } from '../src/lobby';
 import { hexDistance, strandedPatches } from '../src/map';
@@ -429,9 +429,52 @@ describe('question sets', () => {
 });
 
 describe('capture and escalation', () => {
-  it('rule 7: cost is 1, then 2 after 5 waves, then 3 and capped', () => {
-    expect([0, 4, 5, 9, 10, 50].map((w) => costForWaves(w, 5))).toEqual([1, 1, 2, 2, 3, 3]);
-    expect([0, 1, 2, 3].map((w) => costForWaves(w, 1))).toEqual([1, 2, 3, 3]);
+  it('rule 7: cost is 1, then rises by 1 every 5 waves with no cap of 3', () => {
+    expect([0, 4, 5, 9, 10, 15, 18].map((w) => costForWaves(w, 5))).toEqual([1, 1, 2, 2, 3, 4, 4]);
+    expect([0, 1, 2, 3].map((w) => costForWaves(w, 1))).toEqual([1, 2, 3, 4]);
+  });
+
+  it('rule 7: waves 1-19 climb, 20-25 roll 3 to 10, and from 26 roll 5 to 15', () => {
+    const rng = seededRng(3);
+    expect([1, 5, 6, 19].map((w) => costForWave(w, 5, rng))).toEqual([1, 1, 2, 4]);
+    expect(costForWave(19, 1, rng)).toBe(19);
+    const rolls = (wave: number) => Array.from({ length: 400 }, () => costForWave(wave, 5, rng));
+    for (const wave of [20, 25]) {
+      const r = rolls(wave);
+      expect(Math.min(...r)).toBe(3);
+      expect(Math.max(...r)).toBe(10);
+    }
+    for (const wave of [26, 40]) {
+      const r = rolls(wave);
+      expect(Math.min(...r)).toBe(5);
+      expect(Math.max(...r)).toBe(15);
+    }
+  });
+
+  it('a wave uses the cost rolled at the end of the last one, and flags a rise', () => {
+    const rng = seededRng(8);
+    const bank = makeBank(300, 200);
+    const game = createGame(makeLobby(2, { startingTiles: 8, roundsPerCostIncrease: 2 }), rng);
+    const seen: { wave: number; cost: number; rose: boolean; ahead: number | null }[] = [];
+    for (let wave = 1; wave <= 30; wave++) {
+      startWave(game, bank, rng);
+      // No winner, so no land moves and the game lasts all 30 waves.
+      finishBattle(game, game.battles[0], null, true);
+      const before = game.cost;
+      resolveWave(game, rng);
+      expect(game.phase).toBe('intermission');
+      seen.push({ wave: wave + 1, cost: game.cost, rose: game.costRose, ahead: wavesToNextCost(game) });
+      expect(game.costRose).toBe(game.cost > before);
+    }
+    expect(seen.find((s) => s.wave === 3)).toMatchObject({ cost: 2, rose: true, ahead: 2 });
+    expect(seen.find((s) => s.wave === 4)).toMatchObject({ cost: 2, rose: false, ahead: 1 });
+    // With a rise every 2 waves, wave 19 would be 10, but the change at 20 is to random costs.
+    expect(seen.find((s) => s.wave === 19)).toMatchObject({ cost: 10, ahead: 1 });
+    for (const s of seen.filter((x) => x.wave >= 20)) {
+      expect(s.ahead).toBeNull();
+      expect(s.cost).toBeGreaterThanOrEqual(s.wave >= 26 ? 5 : 3);
+      expect(s.cost).toBeLessThanOrEqual(s.wave >= 26 ? 15 : 10);
+    }
   });
 
   it('prefers hexagons bordering the winner', () => {
@@ -456,7 +499,7 @@ describe('capture and escalation', () => {
     const rng = seededRng(4);
     const game = createGame(makeLobby(3), rng);
     const bank = makeBank();
-    game.completedWaves = 10;
+    game.cost = 3;
     startWave(game, bank, rng);
     const b = game.battles[0];
     const loserSide = `s-${b.b}`;
@@ -618,7 +661,7 @@ describe('player stats', () => {
   it('counts rounds won and hexagons captured by the winner', () => {
     const rng = seededRng(4);
     const game = createGame(makeLobby(3, { startingTiles: 5 }), rng);
-    game.completedWaves = 10; // Cost is 3 from here.
+    game.cost = 3;
     startWave(game, makeBank(), rng);
     const b = game.battles[0];
     finishBattle(game, b, b.a, false);
