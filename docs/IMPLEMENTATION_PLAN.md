@@ -35,7 +35,7 @@ A database becomes useful if you later add accounts, credits that carry between 
 
 ## Hosting
 
-The page is hosted on Vercel. The server must be a long-running process, which Vercel can't run, so it goes on Render. See [DEPLOY.md](DEPLOY.md).
+The page is hosted on Vercel. The server must be a long-running process, which Vercel can't run, so it goes on Railway. See [DEPLOY.md](DEPLOY.md).
 
 ## Project layout
 
