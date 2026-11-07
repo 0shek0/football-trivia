@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { costForWaves } from '@tb/shared';
+import { awards, costForWaves, leaderboard, type GamePlayerView } from '@tb/shared';
 import { applyWaveResults } from '../src/capture';
 import {
   advanceBattle, allTeamsNamed, buyItem, closeQuestion, createGame, finishBattle, finishNaming, markLeft,
@@ -12,10 +12,10 @@ import { scheduleWave, type SchedulerPlayer } from '../src/scheduler';
 import type { Battle, GameState } from '../src/types';
 import { makeBank, makeLobby } from './helpers';
 
-const answerAll = (battle: Battle, a: boolean, b: boolean) => {
+const answerAll = (game: GameState, battle: Battle, a: boolean, b: boolean) => {
   submitAnswer(battle, battle.a, a ? battle.current!.correct : (battle.current!.correct + 1) % 4);
   submitAnswer(battle, battle.b, b ? battle.current!.correct : (battle.current!.correct + 1) % 4);
-  closeQuestion(battle);
+  closeQuestion(game, battle);
 };
 
 const tilesOf = (game: GameState, sideId: string) => game.tiles.filter((t) => t.owner === sideId).length;
@@ -24,6 +24,15 @@ describe('lobby', () => {
   it('rule 1: map size defaults to players x starting tiles', () => {
     expect(mapSize(makeLobby(4))).toBe(12);
     expect(mapSize(makeLobby(4, { startingTiles: 5 }))).toBe(20);
+  });
+
+  it('the break between waves is 30 seconds or 5 minutes only', () => {
+    const lobby = makeLobby(2);
+    expect(lobby.settings.waveBreakSec).toBe(30);
+    updateSettings(lobby, { waveBreakSec: 300 });
+    expect(lobby.settings.waveBreakSec).toBe(300);
+    updateSettings(lobby, { waveBreakSec: 5 });
+    expect(lobby.settings.waveBreakSec).toBe(300);
   });
 
   it('clamps host settings to their minimums', () => {
@@ -233,7 +242,7 @@ describe('a round', () => {
   it('rule 10: the higher score after 5 questions wins and earns 1 credit', () => {
     const { game, bank, rng, battle } = setup();
     for (let i = 0; i < 5; i++) {
-      answerAll(battle, true, i === 0);
+      answerAll(game, battle, true, i === 0);
       advanceBattle(game, battle, bank, rng);
     }
     expect(battle.scoreA).toBe(5);
@@ -246,18 +255,18 @@ describe('a round', () => {
   it('plays all 5 even when already decided', () => {
     const { game, bank, rng, battle } = setup();
     for (let i = 0; i < 4; i++) {
-      answerAll(battle, true, false);
+      answerAll(game, battle, true, false);
       advanceBattle(game, battle, bank, rng);
       expect(battle.stage).toBe('question');
     }
   });
 
   it('no answer in time counts as wrong, and a double answer is ignored', () => {
-    const { battle } = setup();
+    const { game, battle } = setup();
     const right = battle.current!.correct;
     expect(submitAnswer(battle, battle.a, right)).toBe(true);
     expect(submitAnswer(battle, battle.a, (right + 1) % 4)).toBe(false);
-    closeQuestion(battle);
+    closeQuestion(game, battle);
     expect(battle.scoreA).toBe(1);
     expect(battle.scoreB).toBe(0);
   });
@@ -265,20 +274,20 @@ describe('a round', () => {
   it('rule 6: ties go to sudden death until one is right and one is wrong', () => {
     const { game, bank, rng, battle } = setup();
     for (let i = 0; i < 5; i++) {
-      answerAll(battle, i < 2, i < 2);
+      answerAll(game, battle, i < 2, i < 2);
       advanceBattle(game, battle, bank, rng);
     }
     expect(battle.sudden).toBe(true);
     const first = battle.current!.id;
     expect(first.startsWith('d')).toBe(true);
-    answerAll(battle, true, true);
+    answerAll(game, battle, true, true);
     advanceBattle(game, battle, bank, rng);
     expect(battle.stage).toBe('question');
-    answerAll(battle, false, false);
+    answerAll(game, battle, false, false);
     advanceBattle(game, battle, bank, rng);
     expect(battle.stage).toBe('question');
     expect(battle.current!.id).not.toBe(first);
-    answerAll(battle, false, true);
+    answerAll(game, battle, false, true);
     advanceBattle(game, battle, bank, rng);
     expect(battle.winner).toBe(battle.b);
     expect(battle.scoreA).toBe(2);
@@ -288,7 +297,7 @@ describe('a round', () => {
   it('0-0 also goes to sudden death', () => {
     const { game, bank, rng, battle } = setup();
     for (let i = 0; i < 5; i++) {
-      closeQuestion(battle);
+      closeQuestion(game, battle);
       advanceBattle(game, battle, bank, rng);
     }
     expect(battle.sudden).toBe(true);
@@ -487,6 +496,106 @@ describe('last stand', () => {
     expect(game.sides.find((s) => s.id === 't-0')!.eliminated).toBe(true);
     expect(game.sides.find((s) => s.id === 't-1')!.eliminated).toBe(true);
     expect(game.tiles.every((t) => t.owner === 't-2')).toBe(true);
+  });
+});
+
+describe('player stats', () => {
+  const setup = () => {
+    const bank = makeBank();
+    const rng = seededRng(5);
+    const game = createGame(makeLobby(2), rng);
+    startWave(game, bank, rng);
+    const battle = game.battles[0];
+    openQuestion(game, battle, bank, rng);
+    const a = game.players.find((p) => p.id === battle.a)!;
+    const b = game.players.find((p) => p.id === battle.b)!;
+    return { game, bank, rng, battle, a, b };
+  };
+
+  it('counts right, wrong and unanswered questions', () => {
+    const { game, battle, a, b } = setup();
+    submitAnswer(battle, battle.a, battle.current!.correct);
+    closeQuestion(game, battle);
+    expect([a.correct, a.wrong, a.answered]).toEqual([1, 0, 1]);
+    // No answer in time counts as wrong, but not as answered.
+    expect([b.correct, b.wrong, b.answered]).toEqual([0, 1, 0]);
+  });
+
+  it('counts sudden death answers but not towards the round score', () => {
+    const { game, bank, rng, battle, a } = setup();
+    for (let i = 0; i < 5; i++) {
+      answerAll(game, battle, false, false);
+      advanceBattle(game, battle, bank, rng);
+    }
+    expect(battle.sudden).toBe(true);
+    answerAll(game, battle, true, false);
+    expect(a.correct).toBe(1);
+    expect(battle.scoreA).toBe(0);
+    expect(a.wrong).toBe(5);
+  });
+
+  it('counts rounds won and hexagons captured by the winner', () => {
+    const rng = seededRng(4);
+    const game = createGame(makeLobby(3, { startingTiles: 5 }), rng);
+    game.completedWaves = 10; // Cost is 3 from here.
+    startWave(game, makeBank(), rng);
+    const b = game.battles[0];
+    finishBattle(game, b, b.a, false);
+    resolveWave(game, rng);
+    const winner = game.players.find((p) => p.id === b.a)!;
+    expect(winner.roundsWon).toBe(1);
+    expect(winner.tilesCaptured).toBe(3);
+    expect(game.players.find((p) => p.id === b.b)!.tilesCaptured).toBe(0);
+  });
+
+  it('a last stand hexagon counts for the winner who finally takes it, and not if it is saved', () => {
+    const play = (saved: boolean) => {
+      const rng = seededRng(21);
+      const game = createGame(makeLobby(4, { mode: 'teams', teamCount: 2 }, [2, 2]), rng);
+      finishNaming(game, rng);
+      startWave(game, makeBank(), rng);
+      game.tiles.forEach((t) => (t.owner = 't-0'));
+      game.tiles[0].owner = 't-1';
+      const [first, second] = game.battles;
+      const onTeam = (b: Battle, side: string) => (game.players.find((p) => p.id === b.a)!.sideId === side ? b.a : b.b);
+      finishBattle(game, first, onTeam(first, 't-0'), false);
+      finishBattle(game, second, onTeam(second, saved ? 't-1' : 't-0'), false);
+      resolveWave(game, rng);
+      return game.players.find((p) => p.id === onTeam(first, 't-0'))!.tilesCaptured;
+    };
+    expect(play(true)).toBe(0);
+    expect(play(false)).toBe(1);
+  });
+
+  const view = (id: string, stats: Partial<GamePlayerView> = {}): GamePlayerView => ({
+    id, name: id, sideId: `s-${id}`, roundsPlayed: 0, correct: 0, wrong: 0, answered: 0, roundsWon: 0, tilesCaptured: 0,
+    connected: true, left: false, ...stats,
+  });
+
+  it('ranks the leaderboard by correct answers, then fewest wrong, with shared ranks for ties', () => {
+    const rows = leaderboard([
+      view('low', { correct: 1 }),
+      view('top', { correct: 5, wrong: 3 }),
+      view('tieB', { correct: 3, wrong: 1 }),
+      view('tieA', { correct: 3, wrong: 1 }),
+      view('careful', { correct: 5, wrong: 1 }),
+    ]);
+    expect(rows.map((r) => [r.player.id, r.rank])).toEqual([
+      ['careful', 1], ['top', 2], ['tieA', 3], ['tieB', 3], ['low', 5],
+    ]);
+  });
+
+  it('gives awards to the top player, shares them on ties, and skips any nobody earned', () => {
+    const results = awards([
+      view('a', { correct: 7, answered: 9, wrong: 2, tilesCaptured: 4 }),
+      view('b', { correct: 2, answered: 9, wrong: 8, tilesCaptured: 0 }),
+    ]);
+    const find = (key: string) => results.find((r) => r.key === key)!;
+    expect(find('correct').players.map((p) => p.id)).toEqual(['a']);
+    expect(find('answered').players.map((p) => p.id)).toEqual(['a', 'b']);
+    expect(find('tilesCaptured').value).toBe(4);
+    expect(find('wrong').players.map((p) => p.id)).toEqual(['b']);
+    expect(awards([view('a'), view('b')])).toEqual([]);
   });
 });
 

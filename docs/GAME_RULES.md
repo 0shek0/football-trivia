@@ -53,6 +53,7 @@ Only the host can change these, in the lobby's settings tab. [Owner]
 | Starting hexagons per player | 3 | Minimum 3, maximum 8 | Minimum [Owner], maximum [Assumed] |
 | Time per question | 10 s | Minimum 10 s, maximum 30 s | Minimum [Owner], maximum [Assumed] |
 | Rounds per player before cost increases | 5 | 1-20 | Default [Owner], range [Assumed] |
+| Time between waves | 30 s | 30 s or 5 min | [Owner] |
 
 ## 5. Map (rules 1 and 2)
 
@@ -78,8 +79,16 @@ Only the host can change these, in the lobby's settings tab. [Owner]
 2. **Start timer**, 10 s. [Owner]
 3. **Wave:** all rounds are played at the same time. Players who finish wait for the others. [Owner]
 4. **Results:** captures are applied and animated on the map at the end of the wave. [Assumed]
-5. **Gap**, 10 s, then the next wave. Steps 4 and 5 share these 10 seconds. [Owner for the 10 s, Assumed for sharing]
+5. **Break**, 30 s by default or 5 min if the host chose it, then the next wave. The host can start the next wave early at any point in the break. [Owner] Steps 4 and 5 share this time. [Assumed]
+   - A leaderboard shows during the break, ranking every player by questions answered correctly, with fewer wrong answers breaking ties. [Owner for the ranking, Assumed for the tie-break]
 6. Repeat from step 3 until one side owns every hexagon. [Owner]
+7. **Finish screen:** shows the winner and player stats: most correct answers, most questions answered, most land won and most wrong answers. Tied players share a stat, and a stat nobody earned is hidden. [Owner for the stats, Assumed for ties]
+
+How stats are counted: [Assumed]
+
+- Sudden death questions count towards all answer stats.
+- A question not answered in time counts as wrong, and not as answered.
+- Land won is the hexagons a player captured by winning rounds. A saved last stand and a walkover after everyone leaves don't add to it.
 
 ## 8. Who plays whom (rules 3 and 4)
 
@@ -148,7 +157,7 @@ Only the host can change these, in the lobby's settings tab. [Owner]
 - **This phase:** the credit balance, store screen and purchase system only. The owner will specify items, usage and costs later. [Owner]
 - Credits belong to each player, including in teams mode. [Assumed]
 - Credits last for one game. [Assumed]
-- The store is open while waiting, during the 10-second gap, and while eliminated players spectate. [Assumed]
+- The store is open while waiting, during the break between waves, and while eliminated players spectate. [Assumed]
 
 ## 13. Connection problems [Assumed]
 

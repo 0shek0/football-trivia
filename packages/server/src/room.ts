@@ -33,7 +33,7 @@ export class Room {
   constructor(
     readonly code: string,
     private bank: QuestionBank,
-    private timers: Timers & { lobbyGraceMs: number },
+    private timers: Timers & { lobbyGraceMs: number; waveBreakOverrideMs?: number },
     private onEmpty: (room: Room) => void,
   ) {
     this.lobby = createLobby('');
@@ -179,6 +179,10 @@ export class Room {
         if (!this.game || typeof msg.itemId !== 'string') return false;
         ok = buyItem(this.game, playerId, msg.itemId);
         break;
+      case 'nextWave':
+        if (this.game?.phase !== 'intermission' || !isHost) return false;
+        this.beginWave();
+        break;
       case 'playAgain':
         if (!this.game || this.game.phase !== 'game_over' || !isHost) return false;
         this.game = null;
@@ -225,6 +229,8 @@ export class Room {
   private beginWave() {
     const game = this.game!;
     if (game.phase === 'game_over') return;
+    // The host can start early, so the break's timer may still be running.
+    if (this.phase) clearTimeout(this.phase.timer);
     this.phase = null;
     startWave(game, this.bank, this.rng);
     for (const battle of game.battles) {
@@ -254,7 +260,7 @@ export class Room {
 
   private closeBattleQuestion(battle: Battle) {
     if (battle.stage !== 'question') return;
-    closeQuestion(battle);
+    closeQuestion(this.game!, battle);
     this.setBattleTimer(battle, this.timers.revealMs, () => this.advance(battle));
     this.queueBroadcast();
   }
@@ -277,7 +283,7 @@ export class Room {
     if (game.phase !== 'wave') return;
     resolveWave(game, this.rng);
     if ((game.phase as string) === 'intermission') {
-      this.setPhaseTimer(this.timers.intermissionMs, () => this.beginWave());
+      this.setPhaseTimer(this.timers.waveBreakOverrideMs ?? game.settings.waveBreakSec * 1000, () => this.beginWave());
     } else {
       this.clearGameTimers();
     }

@@ -6,6 +6,7 @@ import { pick } from './rng';
 interface Hold {
   tileId: number;
   capturer: string;
+  capturerPlayer: string;
 }
 
 // Section 11: prefer a loser's hexagon bordering the winner's land, otherwise any of theirs.
@@ -47,6 +48,8 @@ export function applyWaveResults(game: GameState, cost: number, rng: Rng): WaveE
     holds.delete(sideId);
     const recipient = recipientFor(hold.capturer);
     game.tiles.find((t) => t.id === hold.tileId)!.owner = recipient;
+    // The player who won that round earns it, unless their side was knocked out first.
+    if (recipient === hold.capturer) game.players.find((p) => p.id === hold.capturerPlayer)!.tilesCaptured++;
     events.push({ type: 'capture', winnerSide: recipient, loserSide: sideId, winnerId: '', loserId: '', tiles: [hold.tileId] });
     // Gaining land means the recipient is no longer at 0, so its own hold can complete.
     if (holds.has(recipient)) transferHold(recipient);
@@ -75,7 +78,7 @@ export function applyWaveResults(game: GameState, cost: number, rng: Rng): WaveE
           const pool = liveTiles(loserSide);
           if (pool.length === 0) break;
           if (pool.length === 1 && hasRoundAfter(loserSide, index)) {
-            holds.set(loserSide, { tileId: pool[0].id, capturer: winnerSide });
+            holds.set(loserSide, { tileId: pool[0].id, capturer: winnerSide, capturerPlayer: battle.winner! });
             events.push({ type: 'hold', side: loserSide, tile: pool[0].id });
             break;
           }
@@ -84,6 +87,7 @@ export function applyWaveResults(game: GameState, cost: number, rng: Rng): WaveE
           captured.push(tile.id);
         }
         if (captured.length) {
+          game.players.find((p) => p.id === battle.winner)!.tilesCaptured += captured.length;
           events.push({ type: 'capture', winnerSide, loserSide, winnerId: battle.winner, loserId, tiles: captured });
         }
         if (!sideById(loserSide).eliminated && !holds.has(loserSide) && liveTiles(loserSide).length === 0) {

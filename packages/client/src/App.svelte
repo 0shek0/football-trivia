@@ -51,7 +51,11 @@
     // The logo scales with screen width up to its maximum size.
     if (!view) return { top: width >= 560 ? 250 : 180, bottom: 190 };
     if (lobby) return { top: 90, bottom: Math.round(height * 0.62) };
-    if (game?.phase === 'game_over') return { top: 110, bottom: 310 };
+    if (game?.phase === 'game_over') return { top: 110, bottom: Math.min(Math.round(height * 0.66), 470) };
+    if (game?.phase === 'intermission') {
+      // The leaderboard grows with the number of players, up to the panel's maximum.
+      return { top: 110, bottom: Math.min(Math.round(height * 0.62), 210 + game.players.length * 32) };
+    }
     return { top: 110, bottom: 260 };
   });
 </script>

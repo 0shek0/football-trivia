@@ -15,7 +15,7 @@ function playBattles(game: GameState, rng: Rng) {
     const right = b.current!.correct;
     if (rng() < 0.6) submitAnswer(b, b.a, rng() < 0.6 ? right : (right + 1) % 4);
     if (rng() < 0.6) submitAnswer(b, b.b, rng() < 0.6 ? right : (right + 1) % 4);
-    closeQuestion(b);
+    closeQuestion(game, b);
     advanceBattle(game, b, bank, rng);
   }
 }

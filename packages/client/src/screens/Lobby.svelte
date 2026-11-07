@@ -144,7 +144,12 @@
             </div>
           </div>
         {/each}
-        <p class="soft note">Map size: <b>{lobby.mapSize}</b> hexagons</p>
+        <h3 class="label">Time between waves</h3>
+        <div class="segment">
+          <button class:active={s.waveBreakSec === 30} disabled={!isHost} onclick={() => set({ waveBreakSec: 30 })}>30 seconds</button>
+          <button class:active={s.waveBreakSec === 300} disabled={!isHost} onclick={() => set({ waveBreakSec: 300 })}>5 minutes</button>
+        </div>
+        <p class="soft note">The host can always start the next wave early. Map size: <b>{lobby.mapSize}</b> hexagons</p>
       {/if}
     </div>
 

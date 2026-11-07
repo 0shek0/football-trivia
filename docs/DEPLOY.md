@@ -26,7 +26,7 @@ Opening the Railway domain on its own also shows a fully working copy of the gam
 ## 2. Host the page on Vercel
 
 1. Sign in at [vercel.com](https://vercel.com) with GitHub.
-2. Choose **Add New**, then **Project**, and import `football-trivia`. Vercel reads the build settings from `vercel.json`, so leave them as they are.
+2. Choose **Add New**, then **Project**, and import `football-trivia`. Leave **Root Directory** at the top of the repo (`./`), even if Vercel suggests `packages/client`. Otherwise the build fails with "No Output Directory named dist". Vercel reads the build settings from `vercel.json`, so leave them as they are.
 3. Under **Environment Variables**, add:
    - Name: `VITE_SERVER_URL`
    - Value: your Railway domain, starting with `wss://` instead of `https://`, for example `wss://your-service.up.railway.app`

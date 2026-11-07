@@ -56,6 +56,12 @@ export interface Player {
   played: string[];
   setsPlayed: string[];
   deathPlayed: string[];
+  // Includes sudden death. No answer in time counts as wrong.
+  correct: number;
+  wrong: number;
+  answered: number;
+  roundsWon: number;
+  tilesCaptured: number;
   connected: boolean;
   left: boolean;
 }

@@ -14,6 +14,7 @@ export type ClientMessage =
   | { t: 'teamName'; name: string }
   | { t: 'answer'; battleId: number; question: number; option: number }
   | { t: 'buy'; itemId: string }
+  | { t: 'nextWave' }
   | { t: 'playAgain' };
 
 // Server to client
@@ -77,6 +78,11 @@ export interface GamePlayerView {
   name: string;
   sideId: string;
   roundsPlayed: number;
+  correct: number;
+  wrong: number;
+  answered: number;
+  roundsWon: number;
+  tilesCaptured: number;
   connected: boolean;
   left: boolean;
 }

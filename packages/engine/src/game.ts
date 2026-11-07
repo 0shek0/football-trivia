@@ -13,7 +13,10 @@ export const TEAM_NAMES = [
 ];
 
 function makePlayer(id: string, name: string, sideId: string): Player {
-  return { id, name, sideId, credits: 0, inventory: [], roundsPlayed: 0, played: [], setsPlayed: [], deathPlayed: [], connected: true, left: false };
+  return {
+    id, name, sideId, credits: 0, inventory: [], roundsPlayed: 0, played: [], setsPlayed: [], deathPlayed: [],
+    correct: 0, wrong: 0, answered: 0, roundsWon: 0, tilesCaptured: 0, connected: true, left: false,
+  };
 }
 
 export function createGame(lobby: Lobby, rng: Rng): GameState {
@@ -187,13 +190,22 @@ export function bothAnswered(battle: Battle): boolean {
 }
 
 // Timer ended or both answered: score the question and move to the reveal.
-export function closeQuestion(battle: Battle) {
+export function closeQuestion(game: GameState, battle: Battle) {
   if (battle.stage !== 'question' || !battle.current) return;
   battle.stage = 'reveal';
   if (!battle.sudden) {
     if (battle.answerA === battle.current.correct) battle.scoreA++;
     if (battle.answerB === battle.current.correct) battle.scoreB++;
   }
+  recordAnswer(game, battle.a, battle.answerA, battle.current.correct);
+  recordAnswer(game, battle.b, battle.answerB, battle.current.correct);
+}
+
+function recordAnswer(game: GameState, playerId: string, answer: number | null, correct: number) {
+  const player = game.players.find((p) => p.id === playerId)!;
+  if (answer !== null) player.answered++;
+  if (answer === correct) player.correct++;
+  else player.wrong++;
 }
 
 // After the reveal: next question, sudden death, or the end of the round.
@@ -229,7 +241,11 @@ export function finishBattle(game: GameState, battle: Battle, winner: string | n
   a.played.push(b.id);
   b.played.push(a.id);
   // Rule 11: winning a round grants 1 credit, immediately usable while waiting.
-  if (winner) game.players.find((p) => p.id === winner)!.credits++;
+  if (winner) {
+    const champion = game.players.find((p) => p.id === winner)!;
+    champion.credits++;
+    champion.roundsWon++;
+  }
 }
 
 export function waveComplete(game: GameState): boolean {

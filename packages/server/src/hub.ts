@@ -15,7 +15,8 @@ const MAX_JOIN_ATTEMPTS = 30;
 const HEARTBEAT_MS = 20_000;
 const FINISHED_ROOM_SWEEP_MS = 60_000;
 
-export type HubTimers = typeof TIMERS & { lobbyGraceMs: number };
+// The override lets tests skip the host's chosen break between waves.
+export type HubTimers = typeof TIMERS & { lobbyGraceMs: number; waveBreakOverrideMs?: number };
 export const DEFAULT_HUB_TIMERS: HubTimers = { ...TIMERS, lobbyGraceMs: 180_000 };
 
 interface Client {

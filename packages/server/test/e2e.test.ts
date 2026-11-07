@@ -11,7 +11,7 @@ const FAST: HubTimers = {
   ...TIMERS,
   teamNamingMs: 40,
   startCountdownMs: 5,
-  intermissionMs: 5,
+  waveBreakOverrideMs: 5,
   battleIntroMs: 1,
   revealMs: 1,
   disconnectGraceMs: 30,
@@ -256,6 +256,65 @@ describe('multiplayer server', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(hub.rooms.has(code)).toBe(false);
     closeAll([host]);
+  });
+
+  describe('the break between waves', () => {
+    let breakServer: Server;
+    let breakHub: Hub;
+    const original = { url: '' };
+
+    beforeAll(async () => {
+      // Real break lengths here, so the wave only moves on when the test says so.
+      breakServer = createServer();
+      breakHub = new Hub(breakServer, loadBank(), { ...FAST, waveBreakOverrideMs: undefined }, 1_000_000);
+      await new Promise<void>((r) => breakServer.listen(0, r));
+      original.url = url;
+      url = `ws://127.0.0.1:${(breakServer.address() as AddressInfo).port}/ws`;
+    });
+
+    afterAll(() => {
+      url = original.url;
+      breakHub.close();
+      breakServer.close();
+    });
+
+    const playToBreak = async (settings: object) => {
+      const bots = await makeRoom(3);
+      bots[0].send({ t: 'settings', settings });
+      await bots[0].until(() => bots[0].state?.lobby?.settings.startingTiles === 8);
+      await readyAll(bots);
+      bots[0].send({ t: 'start' });
+      await Promise.all(bots.map((b) => b.until(() => b.state?.game?.phase === 'intermission')));
+      return bots;
+    };
+
+    it('defaults to 30 seconds and the host can start the next wave at once', async () => {
+      const bots = await playToBreak({ startingTiles: 8 });
+      const left = bots[0].state!.game!.msLeft;
+      expect(left).toBeGreaterThan(28_000);
+      expect(left).toBeLessThanOrEqual(30_000);
+      bots[1].send({ t: 'nextWave' });
+      await new Promise((r) => setTimeout(r, 50));
+      expect(bots[0].state!.game!.wave).toBe(1);
+      bots[0].send({ t: 'nextWave' });
+      await bots[1].until(() => (bots[1].state?.game?.wave ?? 0) >= 2);
+      closeAll(bots);
+    });
+
+    it('the host can choose a 5 minute break', async () => {
+      const bots = await playToBreak({ startingTiles: 8, waveBreakSec: 300 });
+      expect(bots[0].state!.game!.msLeft).toBeGreaterThan(290_000);
+      closeAll(bots);
+    });
+
+    it('sends the stats the leaderboard needs', async () => {
+      const bots = await playToBreak({ startingTiles: 8 });
+      const players = bots[0].state!.game!.players;
+      const playing = players.filter((p) => p.roundsPlayed > 0);
+      for (const p of playing) expect(p.correct + p.wrong).toBeGreaterThanOrEqual(5);
+      expect(players.reduce((sum, p) => sum + p.answered, 0)).toBeGreaterThan(0);
+      closeAll(bots);
+    });
   });
 
   it('disconnects a client that floods messages', async () => {

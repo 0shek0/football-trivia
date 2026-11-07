@@ -125,6 +125,7 @@ export function updateSettings(lobby: Lobby, patch: Partial<GameSettings>) {
   if (typeof patch.roundsPerCostIncrease === 'number') {
     s.roundsPerCostIncrease = clamp(patch.roundsPerCostIncrease, LIMITS.roundsPerCostIncrease.min, LIMITS.roundsPerCostIncrease.max);
   }
+  if (patch.waveBreakSec !== undefined && (LIMITS.waveBreakSec as readonly number[]).includes(patch.waveBreakSec)) s.waveBreakSec = patch.waveBreakSec;
   if (structural) {
     reassignOutOfRangeTeams(lobby);
     fillSmallTeams(lobby);

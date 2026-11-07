@@ -6,6 +6,7 @@ export interface GameSettings {
   startingTiles: number;
   questionTimeSec: number;
   roundsPerCostIncrease: number;
+  waveBreakSec: number;
 }
 
 export const LIMITS = {
@@ -17,6 +18,7 @@ export const LIMITS = {
   startingTiles: { min: 3, max: 8 },
   questionTimeSec: { min: 10, max: 30 },
   roundsPerCostIncrease: { min: 1, max: 20 },
+  waveBreakSec: [30, 300],
   maxCost: 3,
   questionsPerSet: 5,
   name: { min: 2, max: 16 },
@@ -30,12 +32,12 @@ export const DEFAULT_SETTINGS: GameSettings = {
   startingTiles: 3,
   questionTimeSec: 10,
   roundsPerCostIncrease: 5,
+  waveBreakSec: 30,
 };
 
 export const TIMERS = {
   teamNamingMs: 60_000,
   startCountdownMs: 10_000,
-  intermissionMs: 10_000,
   battleIntroMs: 2_500,
   revealMs: 2_000,
   disconnectGraceMs: 60_000,
