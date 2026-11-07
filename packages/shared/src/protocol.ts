@@ -15,6 +15,7 @@ export type ClientMessage =
   | { t: 'answer'; battleId: number; question: number; option: number }
   | { t: 'buy'; itemId: string }
   | { t: 'nextWave' }
+  | { t: 'spectate'; battleId: number | null }
   | { t: 'playAgain' };
 
 // Server to client
@@ -130,6 +131,20 @@ export interface MyBattleView {
   msLeft: number;
 }
 
+// The live detail of a watched round. Names and scores come from its BattleSummary.
+export interface SpectateView {
+  id: number;
+  stage: BattleStage;
+  text: string | null;
+  options: string[] | null;
+  // Sent as soon as each player taps, while correct stays hidden until the reveal.
+  answerA: number | null;
+  answerB: number | null;
+  correct: number | null;
+  forfeit: boolean;
+  msLeft: number;
+}
+
 export type WaveEvent =
   | { type: 'capture'; winnerSide: string; loserSide: string; winnerId: string; loserId: string; tiles: number[] }
   | { type: 'hold'; side: string; tile: number }
@@ -150,6 +165,7 @@ export interface GameView {
   tiles: TileView[];
   battles: BattleSummary[];
   myBattle: MyBattleView | null;
+  spectating: SpectateView | null;
   sittingOut: string[];
   namingFor: string | null;
   lastWave: WaveEvent[];

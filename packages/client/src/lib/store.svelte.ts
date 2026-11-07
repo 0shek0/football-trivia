@@ -112,7 +112,8 @@ class AppState {
       case 'state': {
         const at = performance.now();
         this.phaseDeadline = at + (msg.state.game?.msLeft ?? 0);
-        this.battleDeadline = at + (msg.state.game?.myBattle?.msLeft ?? 0);
+        // Only someone with no live round of their own can be watching one.
+        this.battleDeadline = at + (msg.state.game?.spectating?.msLeft ?? msg.state.game?.myBattle?.msLeft ?? 0);
         this.now = at;
         this.view = msg.state;
         break;

@@ -84,6 +84,14 @@ Only the host can change these, in the lobby's settings tab. [Owner]
 6. Repeat from step 3 until one side owns every hexagon. [Owner]
 7. **Finish screen:** shows the winner and player stats: most correct answers, most questions answered, most land won and most wrong answers. Tied players share a stat, and a stat nobody earned is hidden. [Owner for the stats, Assumed for ties]
 
+**Spectating:** a player with no round in progress can watch one, whether they finished theirs, are sitting out or are eliminated. [Owner]
+
+- Each round still being played has a small eye button on the waiting screen. It opens that round, with a back button that returns to the map. [Owner]
+- Each player's choice shows as a small capsule with their name on the answer they picked. [Owner]
+- Capsules appear as soon as a player answers. The right answer shows at the reveal, the same as for the players. [Assumed]
+- When the wave ends, everyone watching goes back to the map for the results. [Assumed]
+- A watched round finishing with others still going shows its result until the watcher goes back. [Assumed]
+
 How stats are counted: [Assumed]
 
 - Sudden death questions count towards all answer stats.
@@ -126,6 +134,7 @@ How stats are counted: [Assumed]
 - A round gets a random set. No two rounds in progress can use the same set. [Owner]
 - A player never plays the same set twice in one game. [Owner]
 - Death questions follow the same two limits. [Assumed]
+- Questions a player has watched count as played for them, so spectating can't give anyone a preview. [Assumed]
 - If the pool ever runs out, the least recently used questions are reused so the game cannot get stuck. [Assumed]
 - Correct answers stay on the server and reach players only at the reveal, so they cannot be read from the browser. [Assumed]
 
@@ -157,7 +166,7 @@ How stats are counted: [Assumed]
 - **This phase:** the credit balance, store screen and purchase system only. The owner will specify items, usage and costs later. [Owner]
 - Credits belong to each player, including in teams mode. [Assumed]
 - Credits last for one game. [Assumed]
-- The store is open while waiting, during the break between waves, and while eliminated players spectate. [Assumed]
+- The store is open from the map while waiting, including for eliminated players, and during the break between waves. It isn't on the spectating screen. [Assumed]
 
 ## 13. Connection problems [Assumed]
 

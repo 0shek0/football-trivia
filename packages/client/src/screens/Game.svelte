@@ -1,10 +1,13 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { RoomView } from '@tb/shared';
+  import { app, haptic } from '../lib/store.svelte';
   import Battle from '../game/Battle.svelte';
   import Countdown from '../game/Countdown.svelte';
   import GameOver from '../game/GameOver.svelte';
   import Hud from '../game/Hud.svelte';
   import Results from '../game/Results.svelte';
+  import Spectate from '../game/Spectate.svelte';
   import StoreSheet from '../game/StoreSheet.svelte';
   import TeamNaming from '../game/TeamNaming.svelte';
   import Waiting from '../game/Waiting.svelte';
@@ -18,10 +21,32 @@
   $effect(() => {
     if (inBattle) storeOpen = false;
   });
+
+  // Kept here so the eye and back buttons respond before the server does.
+  let watchId = $state<number | null>(null);
+  const watched = $derived(game.phase === 'wave' ? (game.battles.find((x) => x.id === watchId) ?? null) : null);
+
+  function watch(battleId: number | null) {
+    haptic();
+    watchId = battleId;
+    app.send({ t: 'spectate', battleId });
+  }
+
+  // The wave ending takes everyone back to the map for the results.
+  $effect(() => {
+    if (game.phase !== 'wave') watchId = null;
+  });
+  // A tap made while offline never reached the server, so ask again on return.
+  $effect(() => {
+    const battleId = untrack(() => watchId);
+    if (app.online && battleId !== null) app.send({ t: 'spectate', battleId });
+  });
 </script>
 
 {#if inBattle}
   <Battle {view} />
+{:else if watched}
+  <Spectate {view} round={watched} onBack={() => watch(null)} />
 {:else}
   <div class="screen">
     <Hud {view} onStore={() => (storeOpen = true)} />
@@ -31,7 +56,7 @@
     {:else if game.phase === 'countdown'}
       <Countdown {view} />
     {:else if game.phase === 'wave'}
-      <Waiting {view} />
+      <Waiting {view} onWatch={watch} />
     {:else if game.phase === 'intermission'}
       <Results {view} />
     {:else}

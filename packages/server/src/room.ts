@@ -3,7 +3,7 @@ import type { ClientMessage, RoomView, ServerMessage, Timers } from '@tb/shared'
 import {
   addPlayer, advanceBattle, allTeamsNamed, autoNameTeam, battleOf, bothAnswered, buyItem, cleanName, closeQuestion, createGame,
   createLobby, finishNaming, markLeft, nameError, openQuestion, removePlayer, resolveWave, setColor, setReady, setTeam, setTeamName,
-  startError, startWave, submitAnswer, updateSettings, waveComplete,
+  setWatching, startError, startWave, submitAnswer, updateSettings, waveComplete,
   type Battle, type GameState, type Lobby, type QuestionBank, type Rng,
 } from '@tb/engine';
 import { gameView, lobbyView } from './views';
@@ -182,6 +182,10 @@ export class Room {
       case 'nextWave':
         if (this.game?.phase !== 'intermission' || !isHost) return false;
         this.beginWave();
+        break;
+      case 'spectate':
+        if (!this.game) return false;
+        ok = setWatching(this.game, playerId, msg.battleId);
         break;
       case 'playAgain':
         if (!this.game || this.game.phase !== 'game_over' || !isHost) return false;

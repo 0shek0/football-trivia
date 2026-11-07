@@ -1,4 +1,4 @@
-import { costForWaves, STORE_ITEMS, type GameView, type LobbyView, type MyBattleView } from '@tb/shared';
+import { costForWaves, STORE_ITEMS, type GameView, type LobbyView, type MyBattleView, type SpectateView } from '@tb/shared';
 import { battleOf, currentCost, mapSize, startError, wavesToNextCost, type Battle, type GameState, type Lobby } from '@tb/engine';
 
 export function lobbyView(lobby: Lobby): LobbyView {
@@ -37,9 +37,25 @@ function myBattleView(battle: Battle, playerId: string, msLeft: number): MyBattl
   };
 }
 
+function spectateView(battle: Battle, msLeft: number): SpectateView {
+  const showQuestion = (battle.stage === 'question' || battle.stage === 'reveal') && battle.current;
+  return {
+    id: battle.id,
+    stage: battle.stage,
+    text: showQuestion ? battle.current!.text : null,
+    options: showQuestion ? battle.current!.options : null,
+    answerA: battle.answerA,
+    answerB: battle.answerB,
+    correct: battle.stage === 'reveal' && battle.current ? battle.current.correct : null,
+    forfeit: battle.forfeit,
+    msLeft,
+  };
+}
+
 export function gameView(game: GameState, playerId: string, phaseMsLeft: number, battleMsLeft: (battleId: number) => number): GameView {
   const me = game.players.find((p) => p.id === playerId);
   const battle = game.phase === 'team_naming' || game.phase === 'countdown' ? null : battleOf(game, playerId);
+  const watched = game.phase === 'wave' ? game.battles.find((b) => b.id === me?.watching) : undefined;
   const naming = game.phase === 'team_naming' ? game.sides.find((s) => s.namerId === playerId && !s.named) : undefined;
   return {
     phase: game.phase,
@@ -85,6 +101,7 @@ export function gameView(game: GameState, playerId: string, phaseMsLeft: number,
       winner: b.winner,
     })),
     myBattle: battle ? myBattleView(battle, playerId, battleMsLeft(battle.id)) : null,
+    spectating: watched ? spectateView(watched, battleMsLeft(watched.id)) : null,
     sittingOut: game.sittingOut,
     namingFor: naming?.id ?? null,
     lastWave: game.lastWave,

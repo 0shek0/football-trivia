@@ -56,6 +56,8 @@ export interface Player {
   played: string[];
   setsPlayed: string[];
   deathPlayed: string[];
+  // The round this player is spectating, if any.
+  watching: number | null;
   // Includes sudden death. No answer in time counts as wrong.
   correct: number;
   wrong: number;

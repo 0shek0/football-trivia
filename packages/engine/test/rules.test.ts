@@ -3,7 +3,7 @@ import { awards, costForWaves, leaderboard, type GamePlayerView } from '@tb/shar
 import { applyWaveResults } from '../src/capture';
 import {
   advanceBattle, allTeamsNamed, buyItem, closeQuestion, createGame, finishBattle, finishNaming, markLeft,
-  openQuestion, resolveWave, setTeamName, startWave, submitAnswer,
+  openQuestion, resolveWave, setTeamName, setWatching, startWave, submitAnswer,
 } from '../src/game';
 import { addPlayer, createLobby, mapSize, nameError, setColor, setTeam, startError, updateSettings } from '../src/lobby';
 import { hexDistance, strandedPatches } from '../src/map';
@@ -301,6 +301,87 @@ describe('a round', () => {
       advanceBattle(game, battle, bank, rng);
     }
     expect(battle.sudden).toBe(true);
+  });
+});
+
+describe('spectating', () => {
+  const setup = () => {
+    const bank = makeBank();
+    const rng = seededRng(21);
+    const game = createGame(makeLobby(4), rng);
+    startWave(game, bank, rng);
+    const [done, live] = game.battles;
+    const player = (id: string) => game.players.find((p) => p.id === id)!;
+    return { game, bank, rng, done, live, player };
+  };
+
+  it('a player whose round finished can watch a live round and stop', () => {
+    const { game, done, live, player } = setup();
+    finishBattle(game, done, done.a, false);
+    expect(setWatching(game, done.a, live.id)).toBe(true);
+    expect(player(done.a).watching).toBe(live.id);
+    expect(setWatching(game, done.a, null)).toBe(true);
+    expect(player(done.a).watching).toBeNull();
+  });
+
+  it('a player still in a round cannot watch another one', () => {
+    const { game, done, live } = setup();
+    expect(setWatching(game, live.a, done.id)).toBe(false);
+  });
+
+  it('finished rounds, unknown rounds and other phases cannot be watched', () => {
+    const { game, done, live } = setup();
+    finishBattle(game, done, done.a, false);
+    finishBattle(game, live, live.a, false);
+    expect(setWatching(game, done.a, live.id)).toBe(false);
+    expect(setWatching(game, done.a, done.id)).toBe(false);
+    expect(setWatching(game, done.a, 999)).toBe(false);
+    expect(setWatching(game, done.a, 'x' as unknown as number)).toBe(false);
+    game.phase = 'intermission';
+    expect(setWatching(game, done.a, null)).toBe(false);
+  });
+
+  it('players sitting out and eliminated players can watch', () => {
+    const bank = makeBank();
+    const rng = seededRng(4);
+    const game = createGame(makeLobby(5), rng);
+    const out = game.players[0];
+    game.sides.find((s) => s.id === out.sideId)!.eliminated = true;
+    game.tiles.filter((t) => t.owner === out.sideId).forEach((t) => (t.owner = game.sides[1].id));
+    startWave(game, bank, rng);
+    expect(game.sittingOut).toEqual([]);
+    expect(setWatching(game, out.id, game.battles[0].id)).toBe(true);
+
+    const threeUp = createGame(makeLobby(3), rng);
+    startWave(threeUp, bank, rng);
+    expect(setWatching(threeUp, threeUp.sittingOut[0], threeUp.battles[0].id)).toBe(true);
+  });
+
+  it('a watched set never comes up in the watcher\'s own rounds', () => {
+    const { game, done, live, player } = setup();
+    finishBattle(game, done, done.a, false);
+    setWatching(game, done.a, live.id);
+    setWatching(game, done.a, live.id);
+    expect(player(done.a).setsPlayed.filter((id) => id === live.setId)).toHaveLength(1);
+  });
+
+  it('a death question counts as seen for whoever is watching when it opens', () => {
+    const { game, bank, rng, done, live, player } = setup();
+    finishBattle(game, done, done.a, false);
+    setWatching(game, done.a, live.id);
+    live.sudden = true;
+    openQuestion(game, live, bank, rng);
+    expect(player(done.a).deathPlayed).toContain(live.current!.id);
+    expect(player(done.b).deathPlayed).not.toContain(live.current!.id);
+  });
+
+  it('a new wave stops everyone watching', () => {
+    const { game, bank, rng, done, live, player } = setup();
+    finishBattle(game, done, done.a, false);
+    setWatching(game, done.a, live.id);
+    finishBattle(game, live, live.a, false);
+    startWave(game, bank, rng);
+    expect(player(done.a).watching).toBeNull();
   });
 });
 

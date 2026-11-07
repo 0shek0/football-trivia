@@ -317,6 +317,87 @@ describe('multiplayer server', () => {
     });
   });
 
+  describe('spectating', () => {
+    it('shows a waiting player both picks live, but the right answer only at the reveal', async () => {
+      const bots = await makeRoom(4);
+      bots.forEach((b) => (b.autoplay = false));
+      await readyAll(bots);
+      bots[0].send({ t: 'start' });
+      await bots[0].until(() => bots[0].state?.game?.phase === 'wave');
+      const { battles } = bots[0].state!.game!;
+      const bot = (id: string) => bots.find((b) => b.id === id)!;
+      const [first, second] = battles;
+      const watcher = bot(first.a);
+      const fighterA = bot(second.a);
+      const fighterB = bot(second.b);
+
+      // The first round plays out while the second sits on its first question.
+      bot(first.a).autoplay = true;
+      bot(first.b).autoplay = true;
+      await Promise.all([fighterA, fighterB].map((b) => b.until(() => b.state?.game?.myBattle?.stage === 'question')));
+      watcher.send({ t: 'spectate', battleId: null });
+      await watcher.until(() => watcher.state?.game?.battles.find((b) => b.id === first.id)?.finished === true);
+
+      watcher.send({ t: 'spectate', battleId: second.id });
+      await watcher.until(() => !!watcher.state?.game?.spectating);
+      const watched = watcher.state!.game!.spectating!;
+      expect(watched.id).toBe(second.id);
+      expect(watched.stage).toBe('question');
+      expect(watched.text).toBeTruthy();
+      expect(watched.options).toHaveLength(4);
+      expect(watched.correct).toBeNull();
+
+      fighterA.send({ t: 'answer', battleId: second.id, question: 1, option: 2 });
+      await watcher.until(() => watcher.state?.game?.spectating?.answerA === 2);
+      expect(watcher.state!.game!.spectating!.correct).toBeNull();
+      // The other player in the round learns they answered, not what they picked.
+      await fighterB.until(() => fighterB.state?.game?.myBattle?.opponentAnswered === true);
+      expect(fighterB.state!.game!.myBattle!.opponentAnswer).toBeNull();
+      expect(fighterB.state!.game!.spectating).toBeNull();
+
+      fighterB.send({ t: 'answer', battleId: second.id, question: 1, option: 3 });
+      let reveal = watcher.state!.game!.spectating!;
+      await watcher.until(() => {
+        reveal = watcher.state!.game!.spectating!;
+        return reveal.stage === 'reveal';
+      });
+      expect(reveal.answerB).toBe(3);
+      expect(reveal.correct).toEqual(expect.any(Number));
+
+      // Still fighting, so no watching for them.
+      fighterA.send({ t: 'spectate', battleId: first.id });
+      await new Promise((r) => setTimeout(r, 20));
+      expect(fighterA.state!.game!.spectating).toBeNull();
+
+      watcher.send({ t: 'spectate', battleId: null });
+      await watcher.until(() => watcher.state?.game?.spectating === null);
+      closeAll(bots);
+    });
+
+    it('an eliminated player can watch the rounds still being played', async () => {
+      const bots = await makeRoom(5);
+      await readyAll(bots);
+      bots[0].send({ t: 'start' });
+      let watchedAs = '';
+      const tryToWatch = (b: Bot) => {
+        const g = b.state?.game;
+        if (!g || g.phase !== 'wave' || watchedAs) return false;
+        const side = g.sides.find((s) => s.memberIds.includes(b.id));
+        if (!side?.eliminated) return false;
+        if (g.spectating) {
+          watchedAs = b.id;
+          return true;
+        }
+        const live = g.battles.find((x) => !x.finished);
+        if (live) b.send({ t: 'spectate', battleId: live.id });
+        return false;
+      };
+      await Promise.race(bots.map((b) => b.until(() => tryToWatch(b), 50_000)));
+      expect(watchedAs).not.toBe('');
+      closeAll(bots);
+    });
+  });
+
   it('disconnects a client that floods messages', async () => {
     const floodServer = createServer();
     const floodHub = new Hub(floodServer, loadBank(), FAST, 10);

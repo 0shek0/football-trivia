@@ -14,7 +14,7 @@ export const TEAM_NAMES = [
 
 function makePlayer(id: string, name: string, sideId: string): Player {
   return {
-    id, name, sideId, credits: 0, inventory: [], roundsPlayed: 0, played: [], setsPlayed: [], deathPlayed: [],
+    id, name, sideId, credits: 0, inventory: [], roundsPlayed: 0, played: [], setsPlayed: [], deathPlayed: [], watching: null,
     correct: 0, wrong: 0, answered: 0, roundsWon: 0, tilesCaptured: 0, connected: true, left: false,
   };
 }
@@ -124,6 +124,7 @@ export function startWave(game: GameState, bank: QuestionBank, rng: Rng) {
   game.wave++;
   game.battles = [];
   game.lastWave = [];
+  for (const p of game.players) p.watching = null;
 
   const players = livingPlayers(game);
   const plan = scheduleWave(players, rng);
@@ -170,6 +171,7 @@ export function openQuestion(game: GameState, battle: Battle, bank: QuestionBank
     const b = game.players.find((p) => p.id === battle.b)!;
     battle.suddenCount++;
     battle.current = serveQuestion(chooseDeath(game, bank, battle, a, b, rng), rng);
+    for (const p of game.players) if (p.watching === battle.id) markSeen(p, battle);
   } else {
     battle.questionIndex++;
     const set = bank.sets.find((s) => s.id === battle.setId)!;
@@ -262,6 +264,31 @@ export function resolveWave(game: GameState, rng: Rng) {
   } else {
     game.phase = 'intermission';
   }
+}
+
+// --- Spectating ---
+
+// Questions a player has watched must not come up in their own rounds later (rule 6).
+function markSeen(player: Player, battle: Battle) {
+  if (!player.setsPlayed.includes(battle.setId)) player.setsPlayed.push(battle.setId);
+  if (battle.sudden && battle.current && !player.deathPlayed.includes(battle.current.id)) player.deathPlayed.push(battle.current.id);
+}
+
+// Anyone without a live round of their own can watch one. Null stops watching.
+export function setWatching(game: GameState, playerId: string, battleId: number | null): boolean {
+  const player = game.players.find((p) => p.id === playerId);
+  if (!player || game.phase !== 'wave') return false;
+  if (battleId === null) {
+    player.watching = null;
+    return true;
+  }
+  const own = battleOf(game, playerId);
+  if (own && own.stage !== 'finished') return false;
+  const battle = game.battles.find((b) => b.id === battleId);
+  if (!battle || battle.stage === 'finished' || battle === own) return false;
+  player.watching = battle.id;
+  markSeen(player, battle);
+  return true;
 }
 
 // --- Leaving ---

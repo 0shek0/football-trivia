@@ -1,7 +1,8 @@
 <script lang="ts">
   import { colorHex, type RoomView } from '@tb/shared';
+  import EyeIcon from './EyeIcon.svelte';
 
-  let { view }: { view: RoomView } = $props();
+  let { view, onWatch }: { view: RoomView; onWatch: (battleId: number) => void } = $props();
   const game = $derived(view.game!);
   const me = $derived(game.players.find((p) => p.id === view.you));
   const mySide = $derived(game.sides.find((s) => s.id === me?.sideId));
@@ -46,6 +47,11 @@
           <small class="soft">{x.finished ? 'Final' : x.sudden ? 'Sudden death' : x.question < 1 ? 'Starting' : `Q${x.question}`}</small>
         </span>
         <span class="who right" class:win={x.winner === x.b}><span class="name">{nameOf(x.b)}</span><i class="hex" style="--c:{colorOf(x.b)}"></i></span>
+        {#if x.finished}
+          <span></span>
+        {:else}
+          <button class="eye chip-btn" onclick={() => onWatch(x.id)} aria-label="Watch {nameOf(x.a)} against {nameOf(x.b)}"><EyeIcon /></button>
+        {/if}
       </li>
     {/each}
   </ul>
@@ -106,7 +112,7 @@
   }
   li {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 32px;
     gap: 6px;
     align-items: center;
     background: var(--panel-2);
@@ -143,5 +149,32 @@
   }
   small {
     font-size: 12px;
+  }
+  .eye {
+    appearance: none;
+    position: relative;
+    border: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--blue);
+    box-shadow: 0 2px 0 var(--blue-edge);
+    color: #fff;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    font-size: 15px;
+    padding: 0;
+    touch-action: manipulation;
+  }
+  .eye:active {
+    transform: translateY(2px);
+    box-shadow: none;
+  }
+  /* Small to look at, but still easy to hit with a thumb. */
+  .eye::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
   }
 </style>
