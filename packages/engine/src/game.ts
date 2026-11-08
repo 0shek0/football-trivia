@@ -138,6 +138,8 @@ export function startWave(game: GameState, bank: QuestionBank, rng: Rng) {
   game.wave++;
   game.battles = [];
   game.lastWave = [];
+  // The rise is news for the break only, once every round has finished.
+  game.costRose = false;
   for (const p of game.players) p.watching = null;
 
   const players = livingPlayers(game);

@@ -43,6 +43,9 @@ class Bot {
   id = '';
   errors: string[] = [];
   leaks = 0;
+  // Views that announced a cost rise, and those that did so before every round had finished.
+  rises = 0;
+  earlyRises = 0;
   autoplay = true;
   private waiters: { test: () => boolean; resolve: () => void }[] = [];
   private answered = new Set<string>();
@@ -68,6 +71,11 @@ class Bot {
       this.state = msg.state;
       const b = msg.state.game?.myBattle;
       if (b && b.stage === 'question' && (b.correct !== null || b.opponentAnswer !== null)) this.leaks++;
+      const g = msg.state.game;
+      if (g?.costJustRose) {
+        this.rises++;
+        if (g.phase === 'wave' || g.battles.some((x) => !x.finished)) this.earlyRises++;
+      }
       if (this.autoplay) this.play();
     }
     this.waiters = this.waiters.filter((w) => {
@@ -315,6 +323,19 @@ describe('multiplayer server', () => {
       expect(players.reduce((sum, p) => sum + p.answered, 0)).toBeGreaterThan(0);
       closeAll(bots);
     });
+  });
+
+  it('announces a cost rise only once every round of the wave has finished', async () => {
+    const bots = await makeRoom(5);
+    // A rise every wave, with plenty of land so the game lasts.
+    bots[0].send({ t: 'settings', settings: { roundsPerCostIncrease: 1, startingTiles: 8 } });
+    await bots[0].until(() => bots[0].state?.lobby?.settings.startingTiles === 8);
+    await readyAll(bots);
+    bots[0].send({ t: 'start' });
+    await Promise.all(bots.map((b) => b.until(() => b.state?.game?.phase === 'game_over', 50_000)));
+    expect(bots.reduce((sum, b) => sum + b.rises, 0)).toBeGreaterThan(0);
+    expect(bots.reduce((sum, b) => sum + b.earlyRises, 0)).toBe(0);
+    closeAll(bots);
   });
 
   describe('spectating', () => {

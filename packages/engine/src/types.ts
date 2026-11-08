@@ -97,7 +97,7 @@ export interface GameState {
   completedWaves: number;
   // Hexagons a loss costs in the current wave, or the next one during the break.
   cost: number;
-  // Set when the last wave ended with the cost going up.
+  // Set during the break when the wave just finished left the cost higher.
   costRose: boolean;
   battles: Battle[];
   sittingOut: string[];

@@ -37,11 +37,12 @@
   $effect(() => {
     if (game.phase !== 'wave') watchId = null;
   });
-  // Shown once per break in which the cost went up, wherever the player is in the game.
+  // Shown once per break in which the cost went up, so only after every round of the wave has finished.
   let costAlert = $state<{ wave: number; cost: number } | null>(null);
   let alertedWave = 0;
   $effect(() => {
-    if (game.phase === 'intermission' && game.costJustRose && game.wave > alertedWave) {
+    const allDone = game.battles.every((b) => b.finished);
+    if (game.phase === 'intermission' && allDone && game.costJustRose && game.wave > alertedWave) {
       alertedWave = game.wave;
       const shown = { wave: game.wave, cost: game.cost };
       costAlert = shown;

@@ -458,6 +458,8 @@ describe('capture and escalation', () => {
     const seen: { wave: number; cost: number; rose: boolean; ahead: number | null }[] = [];
     for (let wave = 1; wave <= 30; wave++) {
       startWave(game, bank, rng);
+      // A rise is only announced in the break, never while rounds are being played.
+      expect(game.costRose).toBe(false);
       // No winner, so no land moves and the game lasts all 30 waves.
       finishBattle(game, game.battles[0], null, true);
       const before = game.cost;
